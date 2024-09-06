@@ -9,19 +9,18 @@ from einops import rearrange
 
 ##########################################################################
 ## Layer Norm
-
 def to_3d(x):
     return rearrange(x, 'b c h w -> b (h w) c')
-
 
 def to_4d(x, h, w):
     return rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
 
-
+##########################################################################
+## Layer Norm
 class BiasFree_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super(BiasFree_LayerNorm, self).__init__()
-        if isinstance(normalized_shape, numbers.Integral):
+        if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
         normalized_shape = torch.Size(normalized_shape)
 
@@ -34,11 +33,10 @@ class BiasFree_LayerNorm(nn.Module):
         sigma = x.var(-1, keepdim=True, unbiased=False)
         return x / torch.sqrt(sigma + 1e-5) * self.weight
 
-
 class WithBias_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super(WithBias_LayerNorm, self).__init__()
-        if isinstance(normalized_shape, numbers.Integral):
+        if isinstance(normalized_shape, int):
             normalized_shape = (normalized_shape,)
         normalized_shape = torch.Size(normalized_shape)
 
@@ -53,7 +51,6 @@ class WithBias_LayerNorm(nn.Module):
         sigma = x.var(-1, keepdim=True, unbiased=False)
         return (x - mu) / torch.sqrt(sigma + 1e-5) * self.weight + self.bias
 
-
 class LayerNorm(nn.Module):
     def __init__(self, dim, LayerNorm_type):
         super(LayerNorm, self).__init__()
@@ -65,7 +62,6 @@ class LayerNorm(nn.Module):
     def forward(self, x):
         h, w = x.shape[-2:]
         return to_4d(self.body(to_3d(x)), h, w)
-
 
 ##########################################################################
 ## Gated-Dconv Feed-Forward Network (GDFN)
@@ -89,7 +85,8 @@ class FeedForward(nn.Module):
         x = self.project_out(x)
         return x
 
-# ECA attention module
+##########################################################################
+## ECA Attention Module 
 class Attention_eca(nn.Module):
     def __init__(self, num_heads, k_size, bias):
         super(Attention_eca, self).__init__()
@@ -108,27 +105,42 @@ class Attention_eca(nn.Module):
             y = self.sigmoid(y)
             out = head * y.expand_as(head)
             outputs.append(out)
-        # Two different branches of ECA module
         output = torch.cat(outputs, dim=1)
-
         return output
 
 ##########################################################################
+## Spatial Attention Module 
+class SpatialAttention(nn.Module):
+    def __init__(self):
+        super(SpatialAttention, self).__init__()
+        self.conv = nn.Conv2d(2, 1, kernel_size=7, padding=3, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        x = torch.cat([max_out, avg_out], dim=1)
+        x = self.conv(x)
+        return self.sigmoid(x)
+
+##########################################################################
+## Transformer Block with Both Channel and Spatial Attention
 class TransformerBlock_eca(nn.Module):
     def __init__(self, dim, num_heads, ffn_expansion_factor, bias, LayerNorm_type):
         super(TransformerBlock_eca, self).__init__()
-
         self.norm1 = LayerNorm(dim, LayerNorm_type)
         self.attn = Attention_eca(num_heads, 3, bias)
+        self.spatial_attn = SpatialAttention()  # Add spatial attention
         self.norm2 = LayerNorm(dim, LayerNorm_type)
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
     def forward(self, x):
         x = x + self.attn(self.norm1(x))
+        x = x * self.spatial_attn(x)  # Apply spatial attention
         x = x + self.ffn(self.norm2(x))
-
         return x
-
+    
+    
 if __name__ == '__main__':
     input = torch.zeros([2, 48, 128, 128])
     # model = Restormer()
