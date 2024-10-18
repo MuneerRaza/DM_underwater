@@ -16,9 +16,9 @@ class VGGPerceptualLoss(nn.Module):
         y_features = self.vgg(y)
         return F.mse_loss(x_features, y_features)
 
-class CombinedPerceptualHuberLoss(nn.Module):
+class CombinedLoss(nn.Module):
     def __init__(self, alpha=1.0, beta=1.0):
-        super(CombinedPerceptualHuberLoss, self).__init__()
+        super(CombinedLoss, self).__init__()
         self.huber_loss = nn.HuberLoss()  # Huber Loss
         self.perceptual_loss = VGGPerceptualLoss()  # Perceptual Loss
         self.alpha = alpha  # Weight for Huber Loss

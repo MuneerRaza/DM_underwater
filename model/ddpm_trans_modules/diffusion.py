@@ -116,7 +116,7 @@ class GaussianDiffusion(nn.Module):
         elif self.loss_type == 'l2':
             self.loss_func = nn.MSELoss().to(device)
         elif self.loss_type == 'combined':
-            self.loss_func = CombinedLoss(alpha=1.0, beta=0.1).to(device)
+            self.loss_func = CombinedLoss(alpha=1.0, beta=1.0).to(device)
         elif self.loss_type == 'huber':
             self.loss_func = nn.HuberLoss().to(device)
         else:
