@@ -73,7 +73,7 @@ def extract(a, t, x_shape):
     broadcastable with x_shape."""
     bs, = t.shape
     assert x_shape[0] == bs
-    out = torch.gather(torch.tensor(a, dtype=torch.float, device=t.device), 0, t.long())
+    out = torch.gather(a.clone().detach().to(dtype=torch.float, device=t.device), 0, t.long())
     assert out.shape == (bs,)
     out = out.reshape((bs,) + (1,) * (len(x_shape) - 1))
     return out
@@ -302,6 +302,55 @@ class GaussianDiffusion(nn.Module):
 
         return xt_next
 
+    def calculate_image_complexity(self, image):
+        # Convert to grayscale if it's a color image
+        if image.shape[1] == 3:
+            gray = 0.299 * image[:, 0] + 0.587 * image[:, 1] + 0.114 * image[:, 2]
+        else:
+            gray = image.squeeze(1)
+        
+        # Calculate gradient magnitude
+        sobel_x = torch.tensor([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], device=image.device).float()
+        sobel_y = torch.tensor([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], device=image.device).float()
+        
+        grad_x = F.conv2d(gray.unsqueeze(1), sobel_x.unsqueeze(0).unsqueeze(0), padding=1)
+        grad_y = F.conv2d(gray.unsqueeze(1), sobel_y.unsqueeze(0).unsqueeze(0), padding=1)
+        
+        gradient_magnitude = torch.sqrt(grad_x**2 + grad_y**2)
+        
+        # Calculate entropy
+        hist = torch.histc(gray, bins=256, min=0, max=1)
+        hist_norm = hist / hist.sum()
+        entropy = -torch.sum(hist_norm * torch.log2(hist_norm + 1e-7))
+        
+        # Combine gradient magnitude and entropy
+        complexity = gradient_magnitude.mean() * entropy
+        
+        return complexity.item()
+    
+    def adaptive_skip(self, complexity):
+        normalized_complexity = (complexity - 0.17) / (7.05 - 0.17)
+        
+        # Use a piecewise function or interpolation
+        if normalized_complexity < 0.15:
+            return 10
+        elif normalized_complexity > 0.9:
+            return 40
+        elif 0.15 <= normalized_complexity <= 0.3:
+            return 15
+        else:
+            return int(10 + (30 * (normalized_complexity - 0.15) / 0.75))
+        
+    def generate_timesteps(self, n):
+        coefficients = [1.89793167e+03, -2.21293807e+02, -1.89444219e+02,
+                    2.23748416e+02, -8.30874285e+01, 1.37353676e+01,
+                    -9.93280229e-01, 1.74894958e-02, 7.19246030e-04]
+        series = []
+        for i in range(n):
+            value = sum(c * (i ** j) for j, c in enumerate(coefficients))
+            series.append(round(value))
+        return series
+
     @torch.no_grad()
     def p_sample_loop(self, x_in, continous=False, cand=None):
         device = self.betas.device
@@ -342,10 +391,15 @@ class GaussianDiffusion(nn.Module):
                     if i % sample_inter == 0:
                         ret_img = torch.cat([ret_img, img], dim=0)
             else:
+
+                complexity = self.calculate_image_complexity(x)
+                steps = self.adaptive_skip(complexity)
+
                 if cand is not None:
                     time_steps = np.array(cand)
                 else:
-                    time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    time_steps = self.generate_timesteps(steps)
+                    # time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
