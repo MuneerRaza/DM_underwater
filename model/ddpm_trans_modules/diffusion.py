@@ -398,8 +398,8 @@ class GaussianDiffusion(nn.Module):
                 if cand is not None:
                     time_steps = np.array(cand)
                 else:
-                    time_steps = self.generate_timesteps(steps)
-                    # time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    # time_steps = self.generate_timesteps(steps)
+                    time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340, 162])
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
