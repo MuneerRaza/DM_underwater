@@ -332,14 +332,12 @@ class GaussianDiffusion(nn.Module):
         normalized_complexity = (complexity - 0.17) / (7.05 - 0.17)
         
         # Use a piecewise function or interpolation
-        if normalized_complexity < 0.15:
+        if normalized_complexity > 0.9:
+            return 20
+        elif normalized_complexity <= 0.4:
             return 10
-        elif normalized_complexity > 0.9:
-            return 40
-        elif 0.15 <= normalized_complexity <= 0.3:
-            return 15
         else:
-            return int(10 + (30 * (normalized_complexity - 0.15) / 0.75))
+            return int(10 + (normalized_complexity - 0.4) * 10)
         
     def generate_timesteps(self, original_timesteps, desired_length):    
         original_timesteps.append(50)
@@ -401,8 +399,11 @@ class GaussianDiffusion(nn.Module):
                     time_steps = np.array(cand)
                 else:
                     old_time_steps = [1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340]
-                    time_steps = self.generate_timesteps(old_time_steps, steps)
-                    time_steps = np.array(time_steps)
+                    if steps == 10:
+                        time_steps = np.array(old_time_steps)
+                    else:
+                        time_steps = self.generate_timesteps(old_time_steps, steps)
+                        time_steps = np.array(time_steps)
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
