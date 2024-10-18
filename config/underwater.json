@@ -2,8 +2,7 @@
     "name": "sr_ffhq",
     "phase": "train", // train or val
     "gpu_ids": [
-        0,
-        1
+        0
     ],
     "path": { //set the path
         "stage": "train", //change train or val folder to save
@@ -81,7 +80,7 @@
     "train": {
         "n_iter": 100,
         "val_freq": 10,
-        "save_checkpoint_freq": 50,
+        "save_checkpoint_freq": 100,
         "print_freq": 1,
         "optimizer": {
             "type": "adam",
