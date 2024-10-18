@@ -341,15 +341,17 @@ class GaussianDiffusion(nn.Module):
         else:
             return int(10 + (30 * (normalized_complexity - 0.15) / 0.75))
         
-    def generate_timesteps(self, n):
-        coefficients = [1.89793167e+03, -2.21293807e+02, -1.89444219e+02,
-                    2.23748416e+02, -8.30874285e+01, 1.37353676e+01,
-                    -9.93280229e-01, 1.74894958e-02, 7.19246030e-04]
-        series = []
-        for i in range(n):
-            value = sum(c * (i ** j) for j, c in enumerate(coefficients))
-            series.append(round(value))
-        return series
+    def generate_timesteps(self, original_timesteps, desired_length):    
+        original_timesteps.append(50)
+        x_original = np.arange(len(original_timesteps))
+        coefficients = np.polyfit(x_original, original_timesteps, 5)
+        polynomial = np.poly1d(coefficients)
+        x_new = np.linspace(0, len(original_timesteps) - 1, desired_length)
+        new_timesteps = polynomial(x_new)
+        new_timesteps = np.round(new_timesteps).astype(int)
+
+        return new_timesteps.tolist()
+
 
     @torch.no_grad()
     def p_sample_loop(self, x_in, continous=False, cand=None):
@@ -398,8 +400,8 @@ class GaussianDiffusion(nn.Module):
                 if cand is not None:
                     time_steps = np.array(cand)
                 else:
-                    # time_steps = self.generate_timesteps(steps)
-                    time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340, 162])
+                    old_time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    time_steps = self.generate_timesteps(old_time_steps, steps)
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
