@@ -230,8 +230,9 @@ if __name__ == "__main__":
         logger.info('# Validation # PSNR: {:.4e}'.format(avg_psnr))
         logger.info('# Validation # SSIM: {:.4e}'.format(avg_ssim))
         logger_val = logging.getLogger('val')  # validation logger
-        logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e}, ssim：{:.4e}'.format(
+        logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e}, ssim: {:.4e}'.format(
             current_epoch, current_step, avg_psnr, avg_ssim))
+        print("SSIM: ", avg_ssim)
 
         if wandb_logger:
             if opt['log_eval']:
