@@ -1,27 +1,35 @@
 import torch
 import torch.nn as nn
+import torchvision.models as models
+import torch.nn.functional as F
 
-class CombinedLoss(nn.Module):
-    def __init__(self, alpha=1.0, beta=0.1):
-        super(CombinedLoss, self).__init__()
+class VGGPerceptualLoss(nn.Module):
+    def __init__(self, requires_grad=False):
+        super(VGGPerceptualLoss, self).__init__()
+        vgg = models.vgg19(pretrained=True).features
+        self.vgg = vgg[:16].eval()  # Use the first 16 layers
+        for param in self.vgg.parameters():
+            param.requires_grad = requires_grad
+
+    def forward(self, x, y):
+        x_features = self.vgg(x)
+        y_features = self.vgg(y)
+        return F.mse_loss(x_features, y_features)
+
+class CombinedPerceptualHuberLoss(nn.Module):
+    def __init__(self, alpha=1.0, beta=1.0):
+        super(CombinedPerceptualHuberLoss, self).__init__()
         self.huber_loss = nn.HuberLoss()  # Huber Loss
-        self.kl_div_loss = nn.KLDivLoss(reduction='batchmean')  # KL Divergence Loss
+        self.perceptual_loss = VGGPerceptualLoss()  # Perceptual Loss
         self.alpha = alpha  # Weight for Huber Loss
-        self.beta = beta    # Weight for KL Divergence Loss
+        self.beta = beta    # Weight for Perceptual Loss
 
     def forward(self, input, target):
         # Compute Huber Loss
         huber = self.huber_loss(input, target)
         
-        # Convert input to probabilities for KL Divergence
-        input_distribution = nn.functional.softmax(input, dim=1)
-        target_distribution = nn.functional.softmax(target, dim=1)
-
-        # Compute KL Divergence Loss
-        kl_div = self.kl_div_loss(
-            nn.functional.log_softmax(input_distribution, dim=1), 
-            target_distribution
-        )
+        # Compute Perceptual Loss
+        perceptual = self.perceptual_loss(input, target)
 
         # Combine the losses
-        return self.alpha * huber + self.beta * kl_div
+        return self.alpha * huber + self.beta * perceptual
