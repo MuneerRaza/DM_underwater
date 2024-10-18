@@ -308,6 +308,7 @@ class GaussianDiffusion(nn.Module):
         sample_inter = 10
         g_gpu = torch.Generator(device=device).manual_seed(44444)
         if not self.conditional:
+            print("NOT CONDITIONAL")
             x = x_in['SR']
             shape = x.shape
             b = shape[0]
@@ -319,7 +320,6 @@ class GaussianDiffusion(nn.Module):
                 num_timesteps_ddim = np.array([0, 245, 521, 1052, 1143, 1286, 1475, 1587, 1765, 1859])  # searching
                 time_steps = np.flip(num_timesteps_ddim)
             for j, i in enumerate(tqdm(time_steps, desc='sampling loop time step', total=len(time_steps))):
-                # print('i = ', i)
                 t = torch.full((b,), i, device=device, dtype=torch.long)
                 if j == len(time_steps) - 1:
                     t_next = None
@@ -330,6 +330,7 @@ class GaussianDiffusion(nn.Module):
                     ret_img = torch.cat([ret_img, img], dim=0)
             return img
         else:
+            print("CONDITIONAL")
             x = x_in['SR']
             shape = x.shape
             b = shape[0]
@@ -337,16 +338,18 @@ class GaussianDiffusion(nn.Module):
             ret_img = x
 
             if self.sample_proc == 'ddpm':
+                print("DDPM, num_timesteps = ", reversed(range(0, self.num_timesteps)))
                 for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):
-                    # print('i = ', i)
+                    
                     img = self.p_sample(img, torch.full(
                         (b,), i, device=device, dtype=torch.long), condition_x=x)
                     if i % sample_inter == 0:
                         ret_img = torch.cat([ret_img, img], dim=0)
             else:
+                print("DDIM")
                 if cand is not None:
                     time_steps = np.array(cand)
-                    # print(time_steps)
+                    print('cand = ', time_steps)
                 else:
                     time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
