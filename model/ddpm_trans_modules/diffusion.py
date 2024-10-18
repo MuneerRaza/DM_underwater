@@ -7,6 +7,7 @@ from functools import partial
 import numpy as np
 from tqdm import tqdm
 from model.ddpm_trans_modules.style_transfer import VGGPerceptualLoss
+from model.ddpm_trans_modules.custom_loss import CombinedLoss
 
 
 
@@ -93,7 +94,7 @@ class GaussianDiffusion(nn.Module):
         denoise_fn,
         image_size,
         channels=3,
-        loss_type='l1',
+        loss_type='combined',
         conditional=True,
         schedule_opt=None
     ):
@@ -114,6 +115,8 @@ class GaussianDiffusion(nn.Module):
             self.style_loss = VGGPerceptualLoss().to(device)
         elif self.loss_type == 'l2':
             self.loss_func = nn.MSELoss().to(device)
+        elif self.loss_type == 'combined':
+            self.loss_func = CombinedLoss(device).to(device)
         else:
             raise NotImplementedError()
 
