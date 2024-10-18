@@ -1,24 +1,27 @@
+import torch
 import torch.nn as nn
-from model.ddpm_trans_modules.style_transfer import VGGPerceptualLoss
-import core.metrics as Metrics
 
 class CombinedLoss(nn.Module):
-    def __init__(self, device, perceptual_weight=1.0, ssim_weight=1.0, l2_weight=1.0):
+    def __init__(self, alpha=1.0, beta=0.1):
         super(CombinedLoss, self).__init__()
-        self.perceptual_loss = VGGPerceptualLoss().to(device)          
-        self.l2_loss = nn.MSELoss().to(device)                 
-        self.perceptual_weight = perceptual_weight
-        self.ssim_weight = ssim_weight
-        self.l2_weight = l2_weight
+        self.huber_loss = nn.HuberLoss()  # Huber Loss
+        self.kl_div_loss = nn.KLDivLoss(reduction='batchmean')  # KL Divergence Loss
+        self.alpha = alpha  # Weight for Huber Loss
+        self.beta = beta    # Weight for KL Divergence Loss
 
-    def forward(self, output, target):
-        # Calculate individual losses
-        l2_loss = self.l2_loss(output, target)
-        perceptual_loss = self.perceptual_loss(output, target)
-        ssim_loss = 1 - Metrics.calculate_ssim(output, target)
+    def forward(self, input, target):
+        # Compute Huber Loss
+        huber = self.huber_loss(input, target)
+        
+        # Convert input to probabilities for KL Divergence
+        input_distribution = nn.functional.softmax(input, dim=1)
+        target_distribution = nn.functional.softmax(target, dim=1)
 
-        # Combine losses with respective weights
-        total_loss = (self.l2_weight * l2_loss +
-                      self.perceptual_weight * perceptual_loss +
-                      self.ssim_weight * ssim_loss)
-        return total_loss
+        # Compute KL Divergence Loss
+        kl_div = self.kl_div_loss(
+            nn.functional.log_softmax(input_distribution, dim=1), 
+            target_distribution
+        )
+
+        # Combine the losses
+        return self.alpha * huber + self.beta * kl_div
