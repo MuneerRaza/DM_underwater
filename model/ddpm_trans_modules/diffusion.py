@@ -333,29 +333,14 @@ class GaussianDiffusion(nn.Module):
         complexity = gradient_magnitude.mean() * entropy
         
         return complexity.item()
-    
-    def adaptive_skip(self, complexity):
-        normalized_complexity = (complexity - 0.17) / (7.05 - 0.17)
-        
-        # Use a piecewise function or interpolation
-        if normalized_complexity > 0.9:
-            return 20
-        elif normalized_complexity <= 0.4:
-            return 10
-        else:
-            return int(10 + (normalized_complexity - 0.4) * 10)
-        
-    def generate_timesteps(self, original_timesteps, desired_length):    
-        original_timesteps.append(50)
-        x_original = np.arange(len(original_timesteps))
-        coefficients = np.polyfit(x_original, original_timesteps, 5)
-        polynomial = np.poly1d(coefficients)
-        x_new = np.linspace(0, len(original_timesteps) - 1, desired_length)
-        new_timesteps = polynomial(x_new)
-        new_timesteps = np.round(new_timesteps).astype(int)
 
-        return new_timesteps.tolist()
-
+    def calculate_skip_factor(self, complexity, min_complexity=0.17, max_complexity=7.05, max_skip=5):
+        
+        norm_complexity = (complexity - min_complexity) / (max_complexity - min_complexity)
+        skip_factor = max_skip * math.exp(-4 * norm_complexity)
+        skip_factor = max(1, int(skip_factor))
+        
+        return skip_factor
 
     @torch.no_grad()
     def p_sample_loop(self, x_in, continous=False, cand=None):
@@ -399,21 +384,16 @@ class GaussianDiffusion(nn.Module):
             else:
 
                 complexity = self.calculate_image_complexity(x)
-                steps = self.adaptive_skip(complexity)
+                steps = self.calculate_image_complexity(complexity)
 
                 if cand is not None:
                     time_steps = np.array(cand)
                 else:
-                    old_time_steps = [1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340]
-                    if steps == 10:
-                        time_steps = np.array(old_time_steps)
-                    else:
-                        time_steps = self.generate_timesteps(old_time_steps, steps)
-                        time_steps = np.array(time_steps)
+                    # time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    time_steps = np.arange(0, self.num_timesteps, steps)
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
-                    # print('i = ', i)
                     t = torch.full((b,), i, device=device, dtype=torch.long)
                     if j == len(time_steps) - 1:
                         t_next = None
