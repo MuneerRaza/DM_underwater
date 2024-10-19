@@ -80,6 +80,9 @@ class DDPM(BaseModel):
 
             self.optG.zero_grad()
             l_pix = self.netG(self.data, flag=None)
+            
+            if l_pix.dim() > 0:
+                l_pix = l_pix.mean()
 
             l_pix.backward()
             self.optG.step()
@@ -90,7 +93,7 @@ class DDPM(BaseModel):
     def optimize_parameters2(self):
         # need to average in multi-gpu
         self.optG.zero_grad()
-        l_pix = self.netG(self.data)
+        l_pix = self.netG(self.data, flag=None)
         # need to average in multi-gpu
         b, c, h, w = self.data['HR'].shape
         l_pix = l_pix.sum() / int(b * c * h * w)

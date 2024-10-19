@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torchvision.models as models
 import torch.nn.functional as F
+from torchvision.models import VGG19_Weights
 
 class VGGPerceptualLoss(nn.Module):
     def __init__(self, requires_grad=False):
         super(VGGPerceptualLoss, self).__init__()
-        vgg = models.vgg19(pretrained=True).features
+        vgg = models.vgg19(weights=VGG19_Weights.DEFAULT).features
         self.vgg = vgg[:16].eval()  # Use the first 16 layers
         for param in self.vgg.parameters():
             param.requires_grad = requires_grad
