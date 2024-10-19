@@ -266,6 +266,7 @@ class GaussianDiffusion(nn.Module):
 
     @torch.no_grad()
     def p_sample_ddim(self, x, t, clip_denoised=True, repeat_noise=False, condition_x=None, style=None):
+
         b, *_, device = *x.shape, x.device
         x_prev, pred_x0 = self.p_mean_variance_ddim(
             x=x, t=t, clip_denoised=clip_denoised, condition_x=condition_x, style=style)
@@ -309,6 +310,7 @@ class GaussianDiffusion(nn.Module):
         return xt_next
 
     def calculate_image_complexity(self, image):
+        
         # Convert to grayscale if it's a color image
         if image.shape[1] == 3:
             gray = 0.299 * image[:, 0] + 0.587 * image[:, 1] + 0.114 * image[:, 2]
@@ -384,7 +386,7 @@ class GaussianDiffusion(nn.Module):
             else:
 
                 complexity = self.calculate_image_complexity(x)
-                steps = self.calculate_image_complexity(complexity)
+                steps = self.calculate_skip_factor(complexity)
 
                 if cand is not None:
                     time_steps = np.array(cand)
@@ -467,7 +469,6 @@ class GaussianDiffusion(nn.Module):
         else:
             x_recon = self.denoise_fn(
                 torch.cat([condition_x, x_noisy], dim=1), t)
-
 
         loss = self.loss_func(noise, x_recon)
 
