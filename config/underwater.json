@@ -82,6 +82,7 @@
         "val_freq": 10,
         "save_checkpoint_freq": 100,
         "print_freq": 1,
+        "loss": "huber", // l1, l2, combined or huber
         "optimizer": {
             "type": "adam",
             "lr": 1e-4
