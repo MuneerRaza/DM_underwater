@@ -138,8 +138,8 @@ class LRHRDataset2(Dataset):
         # img_SR = Image.open(self.sr_path[index]).convert("RGB").resize((128, 128))
         # img_style = Image.open(self.style_path[index]).convert("RGB").resize((64, 64))
 
-        img_HR = Image.open(self.hr_path[index]).convert("RGB").resize((self.r_res, self.r_res))
-        img_SR = Image.open(self.sr_path[index]).convert("RGB").resize((self.r_res, self.r_res))
+        img_HR = Image.open(self.hr_path[index]).convert("RGB")
+        img_SR = Image.open(self.sr_path[index]).convert("RGB")
         # img_style = Image.open(self.style_path[index]).convert("RGB")
         img_style = Image.open(self.sr_path[index]).convert("RGB")
         if self.need_LR:
