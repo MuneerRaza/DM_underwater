@@ -103,6 +103,7 @@ if __name__ == "__main__":
                 # validation
                 if current_step % opt['train']['val_freq'] == 0:
                     avg_psnr = 0.0
+                    avg_ssim = 0.0
                     idx = 0
                     result_path = '{}/{}'.format(opt['path']
                                                  ['results'], current_epoch)
@@ -136,6 +137,8 @@ if __name__ == "__main__":
                             idx)
                         avg_psnr += Metrics.calculate_psnr(
                             sr_img, hr_img)
+                        avg_ssim += Metrics.calculate_ssim(
+                            sr_img, hr_img)
 
                         if wandb_logger:
                             wandb_logger.log_image(
@@ -144,10 +147,11 @@ if __name__ == "__main__":
                             )
 
                     avg_psnr = avg_psnr / idx
+                    avg_ssim = avg_ssim / idx
                     diffusion.set_new_noise_schedule(
                         opt['model']['beta_schedule']['train'], schedule_phase='train')
                     # log
-                    logger.info('# Validation # PSNR: {:.4e}'.format(avg_psnr))
+                    logger.info('# Validation # PSNR: {:.4e} SSIM: {:.4e}'.format(avg_psnr, avg_ssim))
                     logger_val = logging.getLogger('val')  # validation logger
                     logger_val.info('<epoch:{:3d}, iter:{:8,d}> psnr: {:.4e}'.format(
                         current_epoch, current_step, avg_psnr))

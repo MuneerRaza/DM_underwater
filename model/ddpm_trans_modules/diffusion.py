@@ -108,7 +108,7 @@ class GaussianDiffusion(nn.Module):
             pass
             # self.set_new_noise_schedule(schedule_opt)
         self.eta = 0
-        self.sample_proc = 'ddpm'
+        self.sample_proc = 'ddim'
     def set_loss(self, device):
         if self.loss_type == 'l1':
             self.loss_func = nn.L1Loss().to(device)
@@ -384,13 +384,16 @@ class GaussianDiffusion(nn.Module):
                         ret_img = torch.cat([ret_img, img], dim=0)
             else:
 
-                complexity = self.calculate_image_complexity(x)
-                steps = self.calculate_skip_factor(complexity)
+                # complexity = self.calculate_image_complexity(x)
+                # steps = self.calculate_skip_factor(complexity)
 
                 if cand is not None:
                     time_steps = np.array(cand)
                 else:
-                    time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    # time_steps = np.array([1898, 1640, 1539, 1491, 1370, 1136, 972, 858, 680, 340])
+                    time_steps, c, v = [], 0, 1999
+                    while v >= 0 and len(time_steps) < 2000: time_steps.append(int(v)); c += 0.5; v -= c
+                    np.array(time_steps)
                     # time_steps = np.asarray(list(range(0, 1000, int(1000/4))) + list(range(1000, 2000, int(1000/6))))
                     # time_steps = np.flip(time_steps[:-1])
                 for j, i in enumerate(time_steps):
