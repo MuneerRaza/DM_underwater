@@ -140,7 +140,7 @@ class TransformerBlock(nn.Module):
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
     def forward(self, x):
-        x = x + self.multiscale_attn(self.norm1(x)) * self.esa(x)
+        x = x + self.multiscale_attn(self.norm1(x)) + self.esa(x)
         x = x + self.ffn(self.norm2(x))
         return x
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     # model = Restormer()
     # output = model(input)
     model2 = nn.Sequential(*[
-        TransformerBlock_eca(dim=int(48), num_heads=2, ffn_expansion_factor=2.66,
+        TransformerBlock(dim=int(48), num_heads=2, ffn_expansion_factor=2.66,
                          bias=False, LayerNorm_type='WithBias') for i in range(1)])
     # model3 = Attention_sa(1, 16, 48)
     output2 = model2(input)
