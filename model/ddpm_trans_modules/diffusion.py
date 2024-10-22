@@ -119,7 +119,6 @@ class GaussianDiffusion(nn.Module):
             self.loss_func = CombinedLoss(alpha=1.0, beta=1.0).to(device)
         elif self.loss_type == 'huber':
             self.loss_func = nn.HuberLoss().to(device)
-            self.style_loss = VGGPerceptualLoss().to(device)
         else:
             raise NotImplementedError()
 
