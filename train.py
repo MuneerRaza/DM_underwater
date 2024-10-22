@@ -72,8 +72,8 @@ if __name__ == "__main__":
     n_iter = opt['train']['n_iter']
 
     if opt['path']['resume_state']:
-        logger.info('Resuming training from epoch: {}, iter: {}.'.format(
-            current_epoch, current_step))
+        logger.info('Resuming {} from epoch: {}, iter: {}.'.format(
+            opt['phase'], current_epoch, current_step))
 
     diffusion.set_new_noise_schedule(
         opt['model']['beta_schedule'][opt['phase']], schedule_phase=opt['phase'])

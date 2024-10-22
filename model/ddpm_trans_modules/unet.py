@@ -4,7 +4,7 @@ from torch import nn
 import torch.nn.functional as F
 from inspect import isfunction
 
-from model.ddpm_trans_modules.trans_block_eca import TransformerBlock_eca
+from model.ddpm_trans_modules.trans_block_eca import TransformerBlock
 
 
 def exists(x):
@@ -121,7 +121,7 @@ class ResnetBloc_eca(nn.Module):
         self.res_block = ResnetBlock(
             dim, dim_out, time_emb_dim, norm_groups=norm_groups, dropout=dropout)
         if with_attn:
-            self.attn = nn.Sequential(*[TransformerBlock_eca(dim=int(dim), num_heads=2, ffn_expansion_factor=2.66,
+            self.attn = nn.Sequential(*[TransformerBlock(dim=int(dim), num_heads=2, ffn_expansion_factor=2.66,
                                bias=False, LayerNorm_type='WithBias') for i in range(1)])
 
     def forward(self, x, time_emb):

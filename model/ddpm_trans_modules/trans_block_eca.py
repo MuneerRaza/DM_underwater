@@ -20,7 +20,7 @@ def to_4d(x, h, w):
 class BiasFree_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super(BiasFree_LayerNorm, self).__init__()
-        if isinstance(normalized_shape, int):
+        if isinstance(normalized_shape, numbers.Integral):
             normalized_shape = (normalized_shape,)
         normalized_shape = torch.Size(normalized_shape)
 
@@ -36,7 +36,7 @@ class BiasFree_LayerNorm(nn.Module):
 class WithBias_LayerNorm(nn.Module):
     def __init__(self, normalized_shape):
         super(WithBias_LayerNorm, self).__init__()
-        if isinstance(normalized_shape, int):
+        if isinstance(normalized_shape, numbers.Integral):
             normalized_shape = (normalized_shape,)
         normalized_shape = torch.Size(normalized_shape)
 
@@ -84,61 +84,66 @@ class FeedForward(nn.Module):
         x = F.gelu(x1) * x2
         x = self.project_out(x)
         return x
-
+    
 ##########################################################################
-## ECA Attention Module 
-class Attention_eca(nn.Module):
-    def __init__(self, num_heads, k_size, bias):
-        super(Attention_eca, self).__init__()
-        self.num_heads = num_heads
+class EfficientSpatialAttention(nn.Module):
+    def __init__(self, dim):
+        super(EfficientSpatialAttention, self).__init__()
 
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.conv = nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=bias)
+        self.conv = nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        attention_map = self.sigmoid(self.conv(x))
+        return x * attention_map
+    
+##########################################################################
+class MultiScaleAttention(nn.Module):
+    def __init__(self, num_heads, bias):
+        super(MultiScaleAttention, self).__init__()
+        self.num_heads = num_heads
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.k_sizes = [2*i + 3 for i in range(num_heads)]
+        self.convs = nn.ModuleList([
+            nn.Conv1d(1, 1, kernel_size=k_size, padding=(k_size - 1) // 2, bias=bias) 
+            for k_size in self.k_sizes
+        ])
+        
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # Split input into multiple heads (channels are divided)
         heads = x.chunk(self.num_heads, dim=1)
         outputs = []
-        for head in heads:
+        
+        # Process each head with a different kernel size for multi-scale attention
+        for i, head in enumerate(heads):
             y = self.avg_pool(head)
-            y = self.conv(y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
+            y = self.convs[i](y.squeeze(-1).transpose(-1, -2)).transpose(-1, -2).unsqueeze(-1)
             y = self.sigmoid(y)
             out = head * y.expand_as(head)
             outputs.append(out)
+        
+        # Concatenate the outputs from all heads along the channel dimension
         output = torch.cat(outputs, dim=1)
         return output
 
-##########################################################################
-## Spatial Attention Module 
-class SpatialAttention(nn.Module):
-    def __init__(self):
-        super(SpatialAttention, self).__init__()
-        self.conv = nn.Conv2d(2, 1, kernel_size=7, padding=3, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        x = torch.cat([max_out, avg_out], dim=1)
-        x = self.conv(x)
-        return self.sigmoid(x)
-
-##########################################################################
-## Transformer Block with Both Channel and Spatial Attention
-class TransformerBlock_eca(nn.Module):
+## Transformer Block
+class TransformerBlock(nn.Module):
     def __init__(self, dim, num_heads, ffn_expansion_factor, bias, LayerNorm_type):
-        super(TransformerBlock_eca, self).__init__()
+        super(TransformerBlock, self).__init__()
+
         self.norm1 = LayerNorm(dim, LayerNorm_type)
-        self.attn = Attention_eca(num_heads, 3, bias)
-        self.spatial_attn = SpatialAttention()  # Add spatial attention
+        self.multiscale_attn = MultiScaleAttention(num_heads, bias)
+        self.esa = EfficientSpatialAttention(dim)
         self.norm2 = LayerNorm(dim, LayerNorm_type)
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
     def forward(self, x):
-        x = x + self.attn(self.norm1(x))
-        x = x * self.spatial_attn(x)  # Apply spatial attention
+        x = x + self.multiscale_attn(self.norm1(x)) * self.esa(x)
         x = x + self.ffn(self.norm2(x))
         return x
+
     
     
 if __name__ == '__main__':
