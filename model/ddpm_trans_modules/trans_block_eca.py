@@ -140,7 +140,7 @@ class TransformerBlock(nn.Module):
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
     def forward(self, x):
-        x = x + self.multiscale_attn(self.norm1(x)) #+ self.esa(x)
+        x = x + self.multiscale_attn(self.norm1(x)) * self.esa(x)
         x = x + self.ffn(self.norm2(x))
         return x
 
