@@ -90,7 +90,7 @@ class EfficientSpatialAttention(nn.Module):
     def __init__(self, dim):
         super(EfficientSpatialAttention, self).__init__()
 
-        self.conv = nn.Conv2d(dim, dim, kernel_size=3, padding=1, groups=dim)
+        self.conv = nn.Conv2d(dim, dim, kernel_size=5, padding='same', groups=dim)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -135,13 +135,17 @@ class TransformerBlock(nn.Module):
 
         self.norm1 = LayerNorm(dim, LayerNorm_type)
         self.multiscale_attn = MultiScaleAttention(num_heads, bias)
-        self.esa = EfficientSpatialAttention(dim)
+        self.cca = EfficientSpatialAttention(dim)
         self.norm2 = LayerNorm(dim, LayerNorm_type)
         self.ffn = FeedForward(dim, ffn_expansion_factor, bias)
 
     def forward(self, x):
-        x = x + self.multiscale_attn(self.norm1(x)) * self.esa(x)
-        x = x + self.ffn(self.norm2(x))
+        attn = self.multiscale_attn(self.norm1(x))
+        attn = self.cca(attn)
+        x = x + attn
+        ffn_out = self.ffn(self.norm2(x))
+        x = x + ffn_out
+
         return x
 
     
