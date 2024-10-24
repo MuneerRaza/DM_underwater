@@ -108,7 +108,7 @@ class GaussianDiffusion(nn.Module):
             pass
             # self.set_new_noise_schedule(schedule_opt)
         self.eta = 0
-        self.sample_proc = 'ddim'
+        self.sample_proc = 'ddpm'
     def set_loss(self, device):
         if self.loss_type == 'l1':
             self.loss_func = nn.L1Loss().to(device)
